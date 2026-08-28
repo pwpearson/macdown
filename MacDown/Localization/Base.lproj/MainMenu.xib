@@ -118,6 +118,12 @@
                                     <action selector="revertDocumentToSaved:" target="-1" id="iJ3-Pv-kwq"/>
                                 </connections>
                             </menuItem>
+                            <menuItem title="Auto-Refresh on External Changes" id="mPd-7k-aRx">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="toggleAutoRefresh:" target="-1" id="xQr-2n-bTv"/>
+                                </connections>
+                            </menuItem>
                             <menuItem isSeparatorItem="YES" id="oOV-6A-wGe"/>
                             <menuItem title="Export" id="5mp-ev-1el">
                                 <modifierMask key="keyEquivalentModifierMask"/>

@@ -215,6 +215,7 @@ typedef NS_ENUM(NSUInteger, MPWordCountType) {
 @property (strong) NSArray<NSNumber *> *webViewHeaderLocations;
 @property (strong) NSArray<NSNumber *> *editorHeaderLocations;
 @property (nonatomic) BOOL inLiveScroll;
+@property (nonatomic) BOOL autoRefreshEnabled;
 
 // Store file content in initializer until nib is loaded.
 @property (copy) NSString *loadedString;
@@ -347,7 +348,8 @@ static void (^MPGetPreviewLoadingCompletionHandler(MPDocument *doc))()
     self.isPreviewReady = NO;
     self.shouldHandleBoundsChange = YES;
     self.previousSplitRatio = -1.0;
-    
+    self.autoRefreshEnabled = YES;
+
     return self;
 }
 
@@ -497,6 +499,57 @@ static void (^MPGetPreviewLoadingCompletionHandler(MPDocument *doc))()
     }
 
     [super close];
+}
+
+- (void)presentedItemDidChange
+{
+    if (!self.autoRefreshEnabled || !self.fileURL)
+        return;
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSFileCoordinator *coordinator =
+            [[NSFileCoordinator alloc] initWithFilePresenter:self];
+        NSError *error = nil;
+        __block NSString *content = nil;
+
+        [coordinator coordinateReadingItemAtURL:self.fileURL
+                                        options:NSFileCoordinatorReadingWithoutChanges
+                                          error:&error
+                                     byAccessor:^(NSURL *url) {
+            content = [NSString stringWithContentsOfURL:url
+                                               encoding:NSUTF8StringEncoding
+                                                  error:nil];
+        }];
+
+        if (error || !content)
+            return;
+
+        if (self.isDocumentEdited)
+        {
+            NSAlert *alert = [[NSAlert alloc] init];
+            alert.messageText =
+                NSLocalizedString(@"File Changed on Disk",
+                                  @"External change alert title");
+            alert.informativeText =
+                NSLocalizedString(@"The file was modified by another application. "
+                                  @"Reload and discard your unsaved changes?",
+                                  @"External change alert message");
+            [alert addButtonWithTitle:
+                NSLocalizedString(@"Reload", @"External change reload button")];
+            [alert addButtonWithTitle:
+                NSLocalizedString(@"Keep My Changes",
+                                  @"External change keep button")];
+            NSModalResponse response =
+                [alert runModal];
+            if (response != NSAlertFirstButtonReturn)
+                return;
+        }
+
+        self.editor.string = content;
+        [self.renderer parseAndRenderNow];
+        [self.highlighter parseAndHighlightNow];
+        [self updateChangeCount:NSChangeCleared];
+    });
 }
 
 + (BOOL)autosavesInPlace
@@ -683,6 +736,13 @@ static void (^MPGetPreviewLoadingCompletionHandler(MPDocument *doc))()
                           @"Toggle editor pane menu item") :
         NSLocalizedString(@"Restore Editor Pane",
                           @"Toggle editor pane menu item");
+    }
+    else if (action == @selector(toggleAutoRefresh:))
+    {
+        NSMenuItem *it = (NSMenuItem *)item;
+        it.state = self.autoRefreshEnabled ?
+            NSControlStateValueOn : NSControlStateValueOff;
+        it.enabled = (self.fileURL != nil);
     }
     return result;
 }
@@ -1224,6 +1284,11 @@ static void (^MPGetPreviewLoadingCompletionHandler(MPDocument *doc))()
 
 
 #pragma mark - IBAction
+
+- (IBAction)toggleAutoRefresh:(id)sender
+{
+    self.autoRefreshEnabled = !self.autoRefreshEnabled;
+}
 
 - (IBAction)copyHtml:(id)sender
 {
