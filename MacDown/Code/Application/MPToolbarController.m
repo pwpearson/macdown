@@ -228,8 +228,15 @@ static CGFloat itemWidth = 37;
         segmentIndex++;
     }
     
-    itemGroup.maxSize = NSMakeSize(itemGroupWidth, 25);
+    // Removed deprecated maxSize assignment
     itemGroup.view = segmentedControl;
+    // Let Auto Layout determine size instead of deprecated maxSize/minSize
+    segmentedControl.translatesAutoresizingMaskIntoConstraints = NO;
+    // Constrain height to match toolbar standard height while allowing width to size to content
+    [segmentedControl.heightAnchor constraintEqualToConstant:27].active = YES;
+    // Provide a content hugging/compression resistance priority to avoid clipping
+    [segmentedControl setContentHuggingPriority:NSLayoutPriorityDefaultHigh forOrientation:NSLayoutConstraintOrientationHorizontal];
+    [segmentedControl setContentCompressionResistancePriority:NSLayoutPriorityRequired forOrientation:NSLayoutConstraintOrientationHorizontal];
     
     [self->toolbarItemIdentifierObjectDictionary setObject:itemGroup forKey:itemIdentifier];
     
@@ -300,3 +307,4 @@ static CGFloat itemWidth = 37;
 
 
 @end
+

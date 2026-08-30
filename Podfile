@@ -27,3 +27,13 @@ end
 target "macdown-cmd" do
   pod 'GBCli', '~> 1.1'
 end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      # Ensure all pods use a supported macOS deployment target
+      config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = '10.13'
+    end
+  end
+end
+
